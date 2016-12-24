@@ -40,7 +40,7 @@ class Village(object):
             res += "   {}: {}\n".format(r, v)
         res += "Buildings: \n"
         for r,v in self.buildings.iteritems():
-            res += "   {}: Level {}, Buildable {}\n".format(r, v['level'], v['buildable'])
+            res += "   {}: Level {}, Buildable {}, Cost {} \n".format(r, v['level'], v['buildable'], v['cost'] if not v['fully_built'] else None)
         res += "Build queue empty: {}".format(self.build_queue_empty)
         return res
 
@@ -98,6 +98,7 @@ class Village(object):
                 fully_built = build_options is None
                 res['fully_built'] = fully_built
                 if not fully_built:
+                    res['cost'] = {k: int(tr.find("td", class_="cost_"+k).text) for k in ['wood', 'stone', 'iron']}
                     error_message = build_options.find("div", class_="inactive")
                     buildable = False
                     if error_message is None: 
