@@ -1,6 +1,8 @@
 import requests
+import csv
 from bs4 import BeautifulSoup
 import re
+import time
 
 #main_url = "http://localhost:8080/"
 main_url = "https://www.die-staemme.de/"
@@ -147,29 +149,36 @@ def select_building_to_upgrade(buildings, village):
 
 
 def main():
+    #Credentials format (csv): username,password,server
     user = User()
-    user.user = 'vuxoyuw'
-    user.password = 'foobar'
-    user.server = 'de136'
+    with open('creds', 'rb') as csvfile:
+        credsreader = csv.reader(csvfile, delimiter=',', quotechar='"')
+        for row in credsreader:
+            user.user = row[0]
+            user.password = row[1]
+            user.server = row[2]
+            break;
 
     s = requests.Session()
     login(s, user)
     village = get_villages(s, user)[0]
 
-    update_resources(s, user, village)
-    print village.resources
-    print village.production
-    print village.units
+    while True:
+        update_resources(s, user, village)
+        print village.resources
+        print village.production
+        print village.units
 
-    buildings, queue_empty = get_buildings(s, user, village)
-    print buildings 
-    
-    if queue_empty:
-        bid = select_building_to_upgrade(buildings, village)
-        if bid is not None:
-            upgrade_building(s, user, village, bid, buildings[bid]['h_val'])
-    else:
-        print("Build queue not empty")
+        buildings, queue_empty = get_buildings(s, user, village)
+        print buildings 
+        
+        if queue_empty:
+            bid = select_building_to_upgrade(buildings, village)
+            if bid is not None:
+                upgrade_building(s, user, village, bid, buildings[bid]['h_val'])
+        else:
+            print("Build queue not empty")
+        time.sleep(10)
 
 if __name__ == "__main__":
     main()
