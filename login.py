@@ -48,6 +48,10 @@ def get_villages(session, user):
     village.id = id_match
     village.name = name
     return [village]
+#    
+#    overview_page_req = session.get(server_url.format(user.server) + "game.php?screen=overview_villages&mode=prod")
+#    soup = BeautifulSoup(overview_page_req.content, 'html.parser')
+#    prod_table = soup.find("table", id="production_table")
     
 
 def update_resources(session, user, village):
@@ -114,12 +118,32 @@ def get_buildings(session, user, village):
                 res['buildable'] = False
 
             return (building_id, res)
-    return dict(filter(None, map(parse_row, trs)))
+
+    build_queue_table = soup.find("table", id="build_queue")
+    queue_empty = build_queue_table is None
+
+    return dict(filter(None, map(parse_row, trs))), queue_empty
 
 def upgrade_building(session, user, village, building_id, h_val):
     print("Upgrading {}".format(building_id))
     building_upgrade_req = session.get(server_url.format(user.server) + "game.php?village={}&screen=main&action=upgrade_building&id={}&type=main&h={}".format(village.id, building_id, h_val))
     print(building_upgrade_req)
+
+def select_building_to_upgrade(buildings, village):
+    key = None
+    if village.resources['pop_current'] > village.resources['pop_max'] * 0.8:
+        #Uprade farm if population is nealy full
+        key = 'farm'
+    else:
+        #Upgrade resource with least production
+        key = min(village.production, key=village.production.get)
+
+    print("Want to upgrade {}".format(key))
+    if buildings[key]['buildable']:
+        print("and we can")
+        return key 
+    else:
+        print("but we cant")
 
 
 def main():
@@ -137,11 +161,15 @@ def main():
     print village.production
     print village.units
 
-    buildings = get_buildings(s, user, village)
+    buildings, queue_empty = get_buildings(s, user, village)
     print buildings 
     
-    if buildings['wood']['buildable']:
-        upgrade_building(s, user, village, 'wood', buildings['wood']['h_val'])
+    if queue_empty:
+        bid = select_building_to_upgrade(buildings, village)
+        if bid is not None:
+            upgrade_building(s, user, village, bid, buildings[bid]['h_val'])
+    else:
+        print("Build queue not empty")
 
 if __name__ == "__main__":
     main()
