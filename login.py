@@ -161,12 +161,22 @@ def get_villages(session, user):
 
 def select_building_to_upgrade(village):
     key = None
-    if village.resources['pop_current'] > village.resources['pop_max'] * 0.8:
-        #Uprade farm if population is nealy full
-        key = 'farm'
+    def building_max_res(building):
+        if not 'cost' in building:
+            return 0
+        else:
+            return max(building['cost'].itervalues())
+    max_building_resource_usage = max(map(building_max_res, village.buildings.itervalues()))
+    print("Max building resource usage: {}".format(max_building_resource_usage))
+    if max_building_resource_usage > village.resources['storage']:
+        key = 'storage'
     else:
-        #Upgrade resource with least production
-        key = min(village.production, key=village.production.get)
+        if village.resources['pop_current'] > village.resources['pop_max'] * 0.8:
+            #Uprade farm if population is nealy full
+            key = 'farm'
+        else:
+            #Upgrade resource with least production
+            key = min(village.production, key=village.production.get)
 
     print("Want to upgrade {}".format(key))
     if village.buildings[key]['buildable']:
