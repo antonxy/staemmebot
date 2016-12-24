@@ -27,6 +27,24 @@ class Village(object):
         self.buildings = None
         self.build_queue_empty = None
 
+    def __repr__(self):
+        res = "Village {}: {}\n".format(self.id, self.name)
+        res += "Resources: \n"
+        for r,v in self.resources.iteritems():
+            res += "   {}: {}\n".format(r, v)
+        res += "Production: \n"
+        for r,v in self.production.iteritems():
+            res += "   {}: {}\n".format(r, v)
+        res += "Units: \n"
+        for r,v in self.units.iteritems():
+            res += "   {}: {}\n".format(r, v)
+        res += "Buildings: \n"
+        for r,v in self.buildings.iteritems():
+            res += "   {}: Level {}, Buildable {}\n".format(r, v['level'], v['buildable'])
+        res += "Build queue empty: {}".format(self.build_queue_empty)
+        return res
+
+
     def update(self, session):
         self.update_resources(session)
         self.update_buildings(session)
@@ -34,7 +52,6 @@ class Village(object):
     def update_resources(self, session):
         main_page_req = session.get(server_url.format(self.server) + "game.php?village={}&screen=overview".format(self.id))
         soup = BeautifulSoup(main_page_req.content, 'html.parser')
-        print(soup.title)
         resources_table = soup.find("table", class_='menu_block_right')
         self.resources = {k:int(v) for k,v in {
                 'wood': resources_table.find("span", id="wood").text,
@@ -100,7 +117,7 @@ class Village(object):
         queue_empty = build_queue_table is None
 
         self.buildings = dict(filter(None, map(parse_row, trs)))
-        self.build_queue_empty
+        self.build_queue_empty = queue_empty
 
     def upgrade_building(self, session, building_id, h_val):
         print("Upgrading {}".format(building_id))
@@ -175,10 +192,7 @@ def main():
 
     while True:
         village.update(s)
-        print village.resources
-        print village.production
-        print village.units
-        print village.buildings 
+        print village
         
         if village.build_queue_empty:
             bid = select_building_to_upgrade(village)
