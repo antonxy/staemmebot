@@ -231,6 +231,7 @@ def select_action(village):
         # Do not try to recruit
         num_units = 1
         wanted_units = 0
+
     if max_building_resource_usage > village.resources['storage']:
         action = 'build'
         key = 'storage'
@@ -253,7 +254,10 @@ def select_action(village):
     else:
         #Upgrade resource with least production
         action = 'build'
-        key = min(village.production, key=village.production.get)
+        ks = ['wood', 'iron', 'stone']
+        if village.units is not None:
+            ks.append('barracks')
+        key = min(village.buildings, key=lambda k: village.buildings[k]['level'] if k in ks else 100)
 
     if action == 'build':
         print("Want to upgrade {}".format(key))
