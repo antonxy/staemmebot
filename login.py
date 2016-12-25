@@ -26,6 +26,7 @@ class Village(object):
         self.resources = None
         self.production = None
         self.units = None
+        self.units_h = None
         self.buildings = None
         self.build_queue_empty = None
 
@@ -50,6 +51,7 @@ class Village(object):
     def update(self, session):
         self.update_resources(session)
         self.update_buildings(session)
+        self.update_recruitables(session)
 
     def update_resources(self, session):
         main_page_req = session.get(server_url.format(self.server) + "game.php?village={}&screen=overview".format(self.id))
@@ -68,16 +70,16 @@ class Village(object):
         strongs = production_table.find_all("strong")
         self.production = dict(zip(["wood", "stone", "iron"], map(lambda x: int(x.text), strongs)))
 
-        units_table = soup.find("div", id="show_units")
-        tds = units_table.find_all("td")
-        def parse_unit(td):
-            unit_link = td.find("a", class_="unit_link")
-            if unit_link:
-                unit_type = unit_link['data-unit']
-                unit_value = int(td.find("strong").text)
-                return (unit_type, unit_value)
-            return None
-        self.units = dict(filter(None, [parse_unit(td) for td in tds]))
+        #units_table = soup.find("div", id="show_units")
+        #tds = units_table.find_all("td")
+        #def parse_unit(td):
+        #    unit_link = td.find("a", class_="unit_link")
+        #    if unit_link:
+        #        unit_type = unit_link['data-unit']
+        #        unit_value = int(td.find("strong").text)
+        #        return (unit_type, unit_value)
+        #    return None
+        #self.units = dict(filter(None, [parse_unit(td) for td in tds]))
 
     def update_buildings(self, session):
         buildings_page_req = session.get(server_url.format(self.server) + "game.php?village={}&screen=main".format(self.id))
@@ -127,6 +129,36 @@ class Village(object):
         building_upgrade_req = session.get(server_url.format(self.server) + "game.php?village={}&screen=main&action=upgrade_building&id={}&type=main&h={}".format(self.id, building_id, h_val))
         print(building_upgrade_req)
 
+    def update_recruitables(self, session):
+        recruiting_page_req = session.get(server_url.format(self.server) + "game.php?village={}&screen=train".format(self.id))
+        soup = BeautifulSoup(recruiting_page_req.content, 'html.parser')
+        train_form = soup.find("form", id="train_form")
+        h_val = re.search("h=([0-9a-zA-Z]*)", train_form['action']).group(1)
+        trs = train_form.find_all("tr", class_="row_a")
+        print train_form.prettify()
+        def parse_unit_row(tr):
+            unit_id = tr.find("a", class_="unit_link")['data-unit']
+            affordable_text = tr.find("a", id=unit_id + "_0_a").text
+            affordable = int(re.search("\(([0-9]*)\)", affordable_text).group(1))
+            number_td_text = tr.find("td", style="text-align: center").text
+            number_match = re.search("([0-9]*)/([0-9]*)", number_td_text)
+            return unit_id, {
+                    'affordable': affordable,
+                    'num_in_village': int(number_match.group(1)),
+                    'num_all': int(number_match.group(2))
+                    } 
+        self.units = dict(filter(None, map(parse_unit_row, trs)))
+        self.units_h = h_val
+
+    def recruit(self, session, numbers):
+        #numbers: {'spear': 10, 'sword': 5, ...} 
+        print("Recruiting: {}".format(numbers))
+        def format_data(e):
+            return "units["+e[0]+"]", e[1]
+        data = dict(map(format_data, numbers.iteritems()))
+        recruit_req = session.post(server_url.format(self.server) + "game.php?village={}&screen=train&ajaxaction=train&mode=train&h={}&&client_time={}".format(self.id, self.units_h, int(time.time())), data=data)
+        print recruit_req
+
 def login(session, user):
     #Load main page to get cookies
     main_req = session.get(main_url)
@@ -140,25 +172,39 @@ def login(session, user):
     print(world_login_req)
 
 def get_villages(session, user):
-    main_page_req = session.get(server_url.format(user.server) + "game.php")
-    print main_page_req
-    soup = BeautifulSoup(main_page_req.content, 'html.parser')
-    td = soup.find("td", id="menu_row2_village")
-    a = td.find("a")
-    link = a['href']
-    name = a.text
-    print link
-    id_match = re.search("village=([0-9]*)", link).group(1)
-    print id_match
-    village = Village()
-    village.id = id_match
-    village.name = name
-    village.server = user.server
-    return [village]
-#    
-#    overview_page_req = session.get(server_url.format(user.server) + "game.php?screen=overview_villages&mode=prod")
-#    soup = BeautifulSoup(overview_page_req.content, 'html.parser')
-#    prod_table = soup.find("table", id="production_table")
+    #main_page_req = session.get(server_url.format(user.server) + "game.php")
+    #print main_page_req
+    #soup = BeautifulSoup(main_page_req.content, 'html.parser')
+    #td = soup.find("td", id="menu_row2_village")
+    #a = td.find("a")
+    #link = a['href']
+    #name = a.text
+    #print link
+    #id_match = re.search("village=([0-9]*)", link).group(1)
+    #print id_match
+    #village = Village()
+    #village.id = id_match
+    #village.name = name
+    #village.server = user.server
+    #return [village]
+    
+    overview_page_req = session.get(server_url.format(user.server) + "game.php?screen=overview_villages&mode=prod")
+    soup = BeautifulSoup(overview_page_req.content, 'html.parser')
+    prod_table = soup.find("table", id="production_table")
+    trs = soup.find_all("tr", class_="row_a")
+    def parse_row(tr):
+        v = Village()
+        tds = tr.find_all("td")
+        name_td = tds[1]
+        name_a = name_td.find("a")
+        name_span = name_a.find("span")
+        v.name = name_span['data-text']
+        id_match = re.search("village=([0-9]*)", name_a['href']).group(1)
+        v.id = id_match
+        v.server = user.server
+        return v
+        
+    return filter(None, map(parse_row, trs))
     
 
 def select_building_to_upgrade(village):
