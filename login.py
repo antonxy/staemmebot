@@ -259,7 +259,7 @@ def select_action(village):
         print("Want to upgrade {}".format(key))
         if village.buildings[key]['buildable']:
             print("and we can")
-            return key 
+            return action, key 
         else:
             print("but we cant")
     elif action == 'recruit':
