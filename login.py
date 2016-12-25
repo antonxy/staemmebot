@@ -1,5 +1,6 @@
 import requests
 import traceback
+import random
 import csv
 from bs4 import BeautifulSoup
 import re
@@ -30,6 +31,7 @@ class Village(object):
         self.buildings = None
         self.build_queue_empty = None
         self.points = None
+        self.recruit_queue_empty = None
 
     def __repr__(self):
         res = "Village {}: {}\n".format(self.id, self.name)
@@ -152,6 +154,7 @@ class Village(object):
 	    	    } 
 	    self.units = dict(filter(None, map(parse_unit_row, trs)))
 	    self.units_h = h_val
+        self.recruit_queue_empty = soup.find("div", id="trainqueue_wrap_barracks") is None
 
     def recruit(self, session, numbers):
         #numbers: {'spear': 10, 'sword': 5, ...} 
@@ -209,7 +212,7 @@ def get_villages(session, user):
     return filter(None, map(parse_row, trs))
     
 
-def select_building_to_upgrade(village):
+def select_action(village):
     key = None
     def building_max_res(building):
         if not 'cost' in building:
@@ -218,22 +221,45 @@ def select_building_to_upgrade(village):
             return max(building['cost'].itervalues())
     max_building_resource_usage = max(map(building_max_res, village.buildings.itervalues()))
     print("Max building resource usage: {}".format(max_building_resource_usage))
+    num_units = sum([u['num_all'] for u in village.units.itervalues()])
+    print("Number of units: {}".format(num_units))
+    building_level_sum = sum([b['level'] for b in village.buildings.itervalues()])
+    print("Building level sum: {}".format(building_level_sum))
+    wanted_troops = (building_level_sum ** 2) * 0.05
+    print("Wanted troops: {}".format(wanted_troops))
     if max_building_resource_usage > village.resources['storage']:
+        action = 'build'
         key = 'storage'
+    elif village.resources['pop_current'] > village.resources['pop_max'] * 0.8:
+        #Uprade farm if population is nealy full
+        action = 'build'
+        key = 'farm'
+    # Spend similar amounts on troops and buildings if buildings cost quadratically over time
+    elif num_units < wanted_troops:
+        action = 'recruit'
+        selectable = list(set(village.units.iterkeys()) & set(['sword', 'spear']))
+        key = random.choice(selectable)
     else:
-        if village.resources['pop_current'] > village.resources['pop_max'] * 0.8:
-            #Uprade farm if population is nealy full
-            key = 'farm'
-        else:
-            #Upgrade resource with least production
-            key = min(village.production, key=village.production.get)
+        #Upgrade resource with least production
+        action = 'build'
+        key = min(village.production, key=village.production.get)
 
-    print("Want to upgrade {}".format(key))
-    if village.buildings[key]['buildable']:
-        print("and we can")
-        return key 
-    else:
-        print("but we cant")
+    if action == 'build':
+        print("Want to upgrade {}".format(key))
+        if village.buildings[key]['buildable']:
+            print("and we can")
+            return key 
+        else:
+            print("but we cant")
+    elif action == 'recruit':
+        print("Want to recruit {}".format(key))
+        if village.units[key]['affordable'] > 0:
+            print("and we can")
+            return action, key
+        else:
+            print("but we cant")
+
+
 
 
 def main():
@@ -257,13 +283,19 @@ def main():
             while True:
                 village.update(s)
                 print village
-                
-                if village.build_queue_empty:
-                    bid = select_building_to_upgrade(village)
-                    if bid is not None:
-                        village.upgrade_building(s, bid, village.buildings[bid]['h_val'])
-                else:
-                    print("Build queue not empty")
+
+                action, key = select_action(village)
+                if action == 'build':
+                    if village.build_queue_empty and False:
+                        village.upgrade_building(s, key, village.buildings[bid]['h_val'])
+                    else:
+                        print("Build queue not empty")
+                elif action == 'recruit':
+                    if village.recruit_queue_empty:
+                        village.recruit(s, {key: 1})
+                    else:
+                        print("Recruit queue not empty")
+
                 time.sleep(10)
         except Exception as ex:
             traceback.print_exc()
