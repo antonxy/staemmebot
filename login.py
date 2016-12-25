@@ -187,31 +187,36 @@ def select_building_to_upgrade(village):
 
 
 def main():
-    #Credentials format (csv): username,password,server
-    user = User()
-    with open('creds', 'rb') as csvfile:
-        credsreader = csv.reader(csvfile, delimiter=',', quotechar='"')
-        for row in credsreader:
-            user.user = row[0]
-            user.password = row[1]
-            user.server = row[2]
-            break;
-
-    s = requests.Session()
-    login(s, user)
-    village = get_villages(s, user)[0]
-
     while True:
-        village.update(s)
-        print village
-        
-        if village.build_queue_empty:
-            bid = select_building_to_upgrade(village)
-            if bid is not None:
-                village.upgrade_building(s, bid, village.buildings[bid]['h_val'])
-        else:
-            print("Build queue not empty")
-        time.sleep(10)
+        try:
+            #Credentials format (csv): username,password,server
+            user = User()
+            with open('creds', 'rb') as csvfile:
+                credsreader = csv.reader(csvfile, delimiter=',', quotechar='"')
+                for row in credsreader:
+                    user.user = row[0]
+                    user.password = row[1]
+                    user.server = row[2]
+                    break;
+
+            s = requests.Session()
+            login(s, user)
+            village = get_villages(s, user)[0]
+
+            while True:
+                village.update(s)
+                print village
+                
+                if village.build_queue_empty:
+                    bid = select_building_to_upgrade(village)
+                    if bid is not None:
+                        village.upgrade_building(s, bid, village.buildings[bid]['h_val'])
+                else:
+                    print("Build queue not empty")
+                time.sleep(10)
+        except Exception as ex:
+            print ex
+        time.sleep(100)
 
 if __name__ == "__main__":
     main()
