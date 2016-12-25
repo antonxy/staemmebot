@@ -140,7 +140,6 @@ class Village(object):
         if train_form is not None:
 	    h_val = re.search("h=([0-9a-zA-Z]*)", train_form['action']).group(1)
 	    trs = train_form.find_all("tr", class_="row_a")
-	    print train_form.prettify()
 	    def parse_unit_row(tr):
 	        unit_id = tr.find("a", class_="unit_link")['data-unit']
 	        affordable_text = tr.find("a", id=unit_id + "_0_a").text
@@ -235,6 +234,13 @@ def select_action(village):
     if max_building_resource_usage > village.resources['storage']:
         action = 'build'
         key = 'storage'
+    elif village.units is None:
+        if village.buildings['main']['level'] < 3:
+            action = 'build'
+            key = 'main'
+        else:
+            action = 'build'
+            key = 'barracks'
     elif village.resources['pop_current'] > village.resources['pop_max'] * 0.8:
         #Uprade farm if population is nealy full
         action = 'build'
