@@ -1,8 +1,10 @@
 import requests
+import traceback
 import csv
 from bs4 import BeautifulSoup
 import re
 import time
+from datetime import datetime
 
 #main_url = "http://localhost:8080/"
 main_url = "https://www.die-staemme.de/"
@@ -187,6 +189,7 @@ def select_building_to_upgrade(village):
 
 
 def main():
+    exception_file = open("error.log", "a")
     while True:
         try:
             #Credentials format (csv): username,password,server
@@ -215,7 +218,9 @@ def main():
                     print("Build queue not empty")
                 time.sleep(10)
         except Exception as ex:
-            print ex
+            traceback.print_exc()
+            exception_file.write(str(datetime.now()) + "\n")
+            traceback.print_exc(file=exception_file)
         time.sleep(100)
 
 if __name__ == "__main__":
