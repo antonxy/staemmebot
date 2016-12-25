@@ -235,13 +235,6 @@ def select_action(village):
     if max_building_resource_usage > village.resources['storage']:
         action = 'build'
         key = 'storage'
-    elif village.units is None:
-        if village.buildings['main']['level'] < 3:
-            action = 'build'
-            key = 'main'
-        else:
-            action = 'build'
-            key = 'barracks'
     elif village.resources['pop_current'] > village.resources['pop_max'] * 0.8:
         #Uprade farm if population is nealy full
         action = 'build'
@@ -254,8 +247,8 @@ def select_action(village):
     else:
         #Upgrade resource with least production
         action = 'build'
-        ks = ['wood', 'iron', 'stone']
-        if village.units is not None:
+        ks = ['wood', 'iron', 'stone', 'main']
+        if village.buildings['main']['level'] >= 3:
             ks.append('barracks')
         key = min(village.buildings, key=lambda k: village.buildings[k]['level'] if k in ks else 100)
 
