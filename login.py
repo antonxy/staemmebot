@@ -221,12 +221,17 @@ def select_action(village):
             return max(building['cost'].itervalues())
     max_building_resource_usage = max(map(building_max_res, village.buildings.itervalues()))
     print("Max building resource usage: {}".format(max_building_resource_usage))
-    num_units = sum([u['num_all'] for u in village.units.itervalues()])
-    print("Number of units: {}".format(num_units))
-    building_level_sum = sum([b['level'] for b in village.buildings.itervalues()])
-    print("Building level sum: {}".format(building_level_sum))
-    wanted_troops = (building_level_sum ** 2) * 0.05
-    print("Wanted troops: {}".format(wanted_troops))
+    if village.units is not None:
+        num_units = sum([u['num_all'] for u in village.units.itervalues()])
+        print("Number of units: {}".format(num_units))
+        building_level_sum = sum([b['level'] for b in village.buildings.itervalues()])
+        print("Building level sum: {}".format(building_level_sum))
+        wanted_units = (building_level_sum ** 2) * 0.05
+        print("Wanted units: {}".format(wanted_units))
+    else:
+        # Do not try to recruit
+        num_units = 1
+        wanted_units = 0
     if max_building_resource_usage > village.resources['storage']:
         action = 'build'
         key = 'storage'
@@ -235,7 +240,7 @@ def select_action(village):
         action = 'build'
         key = 'farm'
     # Spend similar amounts on troops and buildings if buildings cost quadratically over time
-    elif num_units < wanted_troops:
+    elif num_units < wanted_units:
         action = 'recruit'
         selectable = list(set(village.units.iterkeys()) & set(['sword', 'spear']))
         key = random.choice(selectable)
@@ -284,17 +289,19 @@ def main():
                 village.update(s)
                 print village
 
-                action, key = select_action(village)
-                if action == 'build':
-                    if village.build_queue_empty and False:
-                        village.upgrade_building(s, key, village.buildings[bid]['h_val'])
-                    else:
-                        print("Build queue not empty")
-                elif action == 'recruit':
-                    if village.recruit_queue_empty:
-                        village.recruit(s, {key: 1})
-                    else:
-                        print("Recruit queue not empty")
+                res = select_action(village)
+                if res:
+                    action, key = res
+                    if action == 'build':
+                        if village.build_queue_empty and False:
+                            village.upgrade_building(s, key, village.buildings[bid]['h_val'])
+                        else:
+                            print("Build queue not empty")
+                    elif action == 'recruit':
+                        if village.recruit_queue_empty:
+                            village.recruit(s, {key: 1})
+                        else:
+                            print("Recruit queue not empty")
 
                 time.sleep(10)
         except Exception as ex:
