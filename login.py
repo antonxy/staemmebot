@@ -29,6 +29,7 @@ class Village(object):
         self.units_h = None
         self.buildings = None
         self.build_queue_empty = None
+        self.points = None
 
     def __repr__(self):
         res = "Village {}: {}\n".format(self.id, self.name)
@@ -38,9 +39,10 @@ class Village(object):
         res += "Production: \n"
         for r,v in self.production.iteritems():
             res += "   {}: {}\n".format(r, v)
-        res += "Units: \n"
-        for r,v in self.units.iteritems():
-            res += "   {}: {}\n".format(r, v)
+        if self.units is not None:
+	    res += "Units: \n"
+	    for r,v in self.units.iteritems():
+	        res += "   {}: {}\n".format(r, v)
         res += "Buildings: \n"
         for r,v in self.buildings.iteritems():
             res += "   {}: Level {}, Buildable {}, Cost {} \n".format(r, v['level'], v['buildable'], v['cost'] if not v['fully_built'] else None)
@@ -133,22 +135,23 @@ class Village(object):
         recruiting_page_req = session.get(server_url.format(self.server) + "game.php?village={}&screen=train".format(self.id))
         soup = BeautifulSoup(recruiting_page_req.content, 'html.parser')
         train_form = soup.find("form", id="train_form")
-        h_val = re.search("h=([0-9a-zA-Z]*)", train_form['action']).group(1)
-        trs = train_form.find_all("tr", class_="row_a")
-        print train_form.prettify()
-        def parse_unit_row(tr):
-            unit_id = tr.find("a", class_="unit_link")['data-unit']
-            affordable_text = tr.find("a", id=unit_id + "_0_a").text
-            affordable = int(re.search("\(([0-9]*)\)", affordable_text).group(1))
-            number_td_text = tr.find("td", style="text-align: center").text
-            number_match = re.search("([0-9]*)/([0-9]*)", number_td_text)
-            return unit_id, {
-                    'affordable': affordable,
-                    'num_in_village': int(number_match.group(1)),
-                    'num_all': int(number_match.group(2))
-                    } 
-        self.units = dict(filter(None, map(parse_unit_row, trs)))
-        self.units_h = h_val
+        if train_form is not None:
+	    h_val = re.search("h=([0-9a-zA-Z]*)", train_form['action']).group(1)
+	    trs = train_form.find_all("tr", class_="row_a")
+	    print train_form.prettify()
+	    def parse_unit_row(tr):
+	        unit_id = tr.find("a", class_="unit_link")['data-unit']
+	        affordable_text = tr.find("a", id=unit_id + "_0_a").text
+	        affordable = int(re.search("\(([0-9]*)\)", affordable_text).group(1))
+	        number_td_text = tr.find("td", style="text-align: center").text
+	        number_match = re.search("([0-9]*)/([0-9]*)", number_td_text)
+	        return unit_id, {
+	    	    'affordable': affordable,
+	    	    'num_in_village': int(number_match.group(1)),
+	    	    'num_all': int(number_match.group(2))
+	    	    } 
+	    self.units = dict(filter(None, map(parse_unit_row, trs)))
+	    self.units_h = h_val
 
     def recruit(self, session, numbers):
         #numbers: {'spear': 10, 'sword': 5, ...} 
@@ -194,8 +197,7 @@ def get_villages(session, user):
     trs = soup.find_all("tr", class_="row_a")
     def parse_row(tr):
         v = Village()
-        tds = tr.find_all("td")
-        name_td = tds[1]
+        name_td = tr.find("span", class_="quickedit-content")
         name_a = name_td.find("a")
         name_span = name_a.find("span")
         v.name = name_span['data-text']
