@@ -143,11 +143,13 @@ class Village(object):
 	    def parse_unit_row(tr):
 	        unit_id = tr.find("a", class_="unit_link")['data-unit']
 	        affordable_text = tr.find("a", id=unit_id + "_0_a").text
-	        affordable = int(re.search("\(([0-9]*)\)", affordable_text).group(1))
+                affordable = re.search("\(([0-9]*)\)", affordable_text).group(1)
+                if affordable == '':
+                    affordable = '0'
 	        number_td_text = tr.find("td", style="text-align: center").text
 	        number_match = re.search("([0-9]*)/([0-9]*)", number_td_text)
 	        return unit_id, {
-	    	    'affordable': affordable,
+	    	    'affordable': int(affordable),
 	    	    'num_in_village': int(number_match.group(1)),
 	    	    'num_all': int(number_match.group(2))
 	    	    } 
