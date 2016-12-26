@@ -297,7 +297,7 @@ def main():
                     action, key = res
                     if action == 'build':
                         if village.build_queue_empty:
-                            village.upgrade_building(s, key, village.buildings[bid]['h_val'])
+                            village.upgrade_building(s, key, village.buildings[key]['h_val'])
                         else:
                             print("Build queue not empty")
                     elif action == 'recruit':
